@@ -304,6 +304,38 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateChapter(chapter: ChapterEntity) {
+        viewModelScope.launch {
+            repository.updateChapter(chapter)
+        }
+    }
+
+    fun deleteChapter(chapter: ChapterEntity) {
+        viewModelScope.launch {
+            repository.deleteChapterById(chapter.id)
+        }
+    }
+
+    fun applyCustomTableOfContents(tocText: String) {
+        val folio = activeFolio.value ?: return
+        viewModelScope.launch {
+            repository.applyCustomToc(folio.id, folio.totalPages, tocText)
+        }
+    }
+
+    fun scanAndExtractPdfOutline() {
+        val folio = activeFolio.value ?: return
+        viewModelScope.launch {
+            val success = repository.extractAndApplyPdfOutline(folio)
+            if (!success) {
+                repository.replaceChaptersForFolio(
+                    folio.id,
+                    repository.generateDefaultChaptersForPageCount(folio.id, folio.totalPages, folio.title)
+                )
+            }
+        }
+    }
+
     fun importPdfFromUri(uri: Uri) {
         viewModelScope.launch {
             val imported = repository.importExternalPdf(uri)

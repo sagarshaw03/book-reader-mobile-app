@@ -36,6 +36,22 @@ class ExampleRobolectricTest {
             val firstList = chapters.first()
             println("ARCH CHAPTERS COUNT: " + firstList.size + " -> " + firstList.map { it.title })
             assertTrue("Expected at least 8 chapters for architecture, but got: " + firstList.size, firstList.size >= 8)
+
+            // Test custom TOC parsing for uploaded book contents
+            val customToc = """
+                Chapter 1: The Foundations of Design - 1
+                Chapter 2: Symmetry and Proportions - 12
+                Chapter 3: The Classical Orders - 28
+                - Section 3.1: The Doric Order - 30
+                Chapter 4: Vaults and Domes - 45
+            """.trimIndent()
+            val parsedChapters = com.example.data.PdfOutlineExtractor.parseCustomTocText(customToc, "custom_book", 60)
+            assertEquals(5, parsedChapters.size)
+            assertEquals("Chapter 1: The Foundations of Design", parsedChapters[0].title)
+            assertEquals(0, parsedChapters[0].startPage)
+            assertEquals("Chapter 2: Symmetry and Proportions", parsedChapters[1].title)
+            assertEquals(11, parsedChapters[1].startPage)
+            assertEquals(1, parsedChapters[3].level) // sub-section
         }
     }
 }

@@ -91,11 +91,17 @@ fun ChapterOutlineSheet(
     bookmarks: List<BookmarkEntity>,
     onSelectPage: (Int) -> Unit,
     onAddCustomChapter: (title: String, subtitle: String, isSubSection: Boolean) -> Unit,
+    onUpdateChapter: (ChapterEntity) -> Unit = {},
+    onDeleteChapter: (ChapterEntity) -> Unit = {},
+    onApplyCustomToc: (String) -> Unit = {},
+    onScanAndExtractPdfOutline: () -> Unit = {},
     onRegenerateOutline: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAddForm by remember { mutableStateOf(false) }
+    var showPasteTocDialog by remember { mutableStateOf(false) }
+    var editingChapter by remember { mutableStateOf<ChapterEntity?>(null) }
     var selectedOutlineTab by remember { mutableIntStateOf(0) } // 0 = Chapters, 1 = All Leaves
     var newTitle by remember { mutableStateOf("") }
     var newSubtitle by remember { mutableStateOf("") }
@@ -144,21 +150,37 @@ fun ChapterOutlineSheet(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = { showAddForm = !showAddForm },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("toggle_add_chapter_marker_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (showAddForm) "Cancel" else "Mark Page ${currentPage + 1}",
-                        fontSize = 12.sp
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(
+                        onClick = { showPasteTocDialog = true },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_paste_toc_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Edit TOC", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showAddForm = !showAddForm },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("toggle_add_chapter_marker_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (showAddForm) "Cancel" else "+ Mark",
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
 
@@ -298,22 +320,35 @@ fun ChapterOutlineSheet(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Generate a structured table of contents outline for this folio.",
+                                text = "Extract outlines from this book, paste the table of contents, or auto-generate sections.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(14.dp))
-                            Button(
-                                onClick = onRegenerateOutline,
-                                modifier = Modifier.testTag("generate_outline_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesomeMotion,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Generate Table of Contents")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = onScanAndExtractPdfOutline,
+                                    modifier = Modifier.testTag("scan_outline_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesomeMotion,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Scan Book Outlines")
+                                }
+                                OutlinedButton(
+                                    onClick = { showPasteTocDialog = true }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EditNote,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Paste Contents")
+                                }
                             }
                         }
                     }
@@ -359,13 +394,13 @@ fun ChapterOutlineSheet(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Chapter status pill
                                     Box(
                                         modifier = Modifier
-                                            .size(if (chapter.level == 0) 34.dp else 26.dp)
+                                            .size(if (chapter.level == 0) 32.dp else 24.dp)
                                             .clip(CircleShape)
                                             .background(
                                                 when {
@@ -381,14 +416,14 @@ fun ChapterOutlineSheet(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Completed",
                                                 tint = MaterialTheme.colorScheme.tertiary,
-                                                modifier = Modifier.size(15.dp)
+                                                modifier = Modifier.size(14.dp)
                                             )
                                         } else {
                                             Text(
                                                 text = if (chapter.level == 0) "${chapter.chapterNumber}" else "§",
                                                 fontFamily = JetBrainsMonoFamily,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp,
+                                                fontSize = 11.sp,
                                                 color = if (isExactCurrent) {
                                                     MaterialTheme.colorScheme.onPrimary
                                                 } else {
@@ -398,14 +433,14 @@ fun ChapterOutlineSheet(
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = chapter.title,
                                             fontFamily = if (chapter.level == 0) PlayfairDisplayFamily else MaterialTheme.typography.titleMedium.fontFamily,
                                             fontWeight = if (chapter.level == 0) FontWeight.Bold else FontWeight.SemiBold,
-                                            fontSize = if (chapter.level == 0) 16.sp else 14.sp,
+                                            fontSize = if (chapter.level == 0) 15.sp else 13.5.sp,
                                             color = if (isExactCurrent) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer
                                             } else {
@@ -427,7 +462,7 @@ fun ChapterOutlineSheet(
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
 
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
@@ -445,17 +480,45 @@ fun ChapterOutlineSheet(
                                             }
                                         )
                                         if (chapterBookmarks.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Spacer(modifier = Modifier.height(2.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 chapterBookmarks.take(3).forEach { bm ->
                                                     Icon(
                                                         imageVector = Icons.Filled.Bookmark,
                                                         contentDescription = "Bookmarked in chapter",
                                                         tint = Color(bm.ribbonColorHex),
-                                                        modifier = Modifier.size(13.dp)
+                                                        modifier = Modifier.size(12.dp)
                                                     )
                                                 }
                                             }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    // Quick action buttons: Edit and Delete
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = { editingChapter = chapter },
+                                            modifier = Modifier.size(28.dp).testTag("edit_chapter_${chapter.id}")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.EditNote,
+                                                contentDescription = "Edit Chapter",
+                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onDeleteChapter(chapter) },
+                                            modifier = Modifier.size(28.dp).testTag("delete_chapter_${chapter.id}")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.DeleteOutline,
+                                                contentDescription = "Delete Chapter",
+                                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -569,6 +632,170 @@ fun ChapterOutlineSheet(
                 }
             }
         }
+    }
+
+    // Modal Dialog: Paste / Edit Full Table of Contents
+    if (showPasteTocDialog) {
+        var tocInput by remember(chapters) {
+            mutableStateOf(
+                if (chapters.isNotEmpty()) {
+                    chapters.joinToString("\n") { ch ->
+                        "${ch.title} - ${ch.startPage + 1}"
+                    }
+                } else {
+                    "Chapter 1: Introduction - 1\nChapter 2: Core Concepts - 15\nChapter 3: Analysis & Plates - 32"
+                }
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { showPasteTocDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Book Table of Contents")
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Paste or type your book's contents (one chapter per line with page number, e.g. 'Chapter 1: Introduction - 1').",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = tocInput,
+                        onValueChange = { tocInput = it },
+                        label = { Text("Contents List") },
+                        minLines = 6,
+                        maxLines = 10,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("paste_toc_input")
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onScanAndExtractPdfOutline()
+                            showPasteTocDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("scan_pdf_bookmarks_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesomeMotion,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Auto-Scan PDF for Bookmarks / Outline")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (tocInput.isNotBlank()) {
+                            onApplyCustomToc(tocInput)
+                            showPasteTocDialog = false
+                        }
+                    },
+                    modifier = Modifier.testTag("apply_pasted_toc_button")
+                ) {
+                    Text("Apply Contents")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasteTocDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Modal Dialog: Edit Individual Chapter Details
+    if (editingChapter != null) {
+        val ch = editingChapter!!
+        var editTitle by remember(ch) { mutableStateOf(ch.title) }
+        var editSubtitle by remember(ch) { mutableStateOf(ch.subtitle) }
+        var editStartPage by remember(ch) { mutableStateOf((ch.startPage + 1).toString()) }
+        var editEndPage by remember(ch) { mutableStateOf((ch.endPage + 1).toString()) }
+
+        AlertDialog(
+            onDismissRequest = { editingChapter = null },
+            title = { Text("Edit Chapter Details") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = editTitle,
+                        onValueChange = { editTitle = it },
+                        label = { Text("Chapter Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("edit_chapter_title_input")
+                    )
+                    OutlinedTextField(
+                        value = editSubtitle,
+                        onValueChange = { editSubtitle = it },
+                        label = { Text("Subtitle / Summary") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = editStartPage,
+                            onValueChange = { editStartPage = it },
+                            label = { Text("Start Page (1..$totalPages)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = editEndPage,
+                            onValueChange = { editEndPage = it },
+                            label = { Text("End Page (1..$totalPages)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editTitle.isNotBlank()) {
+                            val startP = (editStartPage.toIntOrNull() ?: 1) - 1
+                            val endP = (editEndPage.toIntOrNull() ?: (startP + 1)) - 1
+                            val clampedStart = startP.coerceIn(0, totalPages - 1)
+                            val clampedEnd = endP.coerceIn(clampedStart, totalPages - 1)
+                            onUpdateChapter(
+                                ch.copy(
+                                    title = editTitle.trim(),
+                                    subtitle = editSubtitle.trim(),
+                                    startPage = clampedStart,
+                                    endPage = clampedEnd
+                                )
+                            )
+                            editingChapter = null
+                        }
+                    },
+                    modifier = Modifier.testTag("save_edited_chapter_button")
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingChapter = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

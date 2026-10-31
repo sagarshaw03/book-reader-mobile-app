@@ -52,6 +52,12 @@ interface FolioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChapter(chapter: ChapterEntity)
 
+    @Update
+    suspend fun updateChapter(chapter: ChapterEntity)
+
+    @Query("DELETE FROM chapters WHERE id = :chapterId")
+    suspend fun deleteChapterById(chapterId: Long)
+
     @Query("DELETE FROM chapters WHERE folioId = :folioId")
     suspend fun deleteChaptersForFolio(folioId: String)
 

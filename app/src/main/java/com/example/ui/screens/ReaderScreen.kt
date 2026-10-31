@@ -99,6 +99,10 @@ fun ReaderScreen(
     onRemoveBookmarkOnPage: (pageIndex: Int) -> Unit,
     onDeleteBookmark: (BookmarkEntity) -> Unit,
     onAddCustomChapter: (title: String, subtitle: String, isSubSection: Boolean) -> Unit,
+    onUpdateChapter: (ChapterEntity) -> Unit = {},
+    onDeleteChapter: (ChapterEntity) -> Unit = {},
+    onApplyCustomToc: (String) -> Unit = {},
+    onScanAndExtractPdfOutline: () -> Unit = {},
     onRegenerateOutline: () -> Unit = {},
     onSelectTurnMode: (TurnMode3D) -> Unit,
     onSelectPaperTheme: (PaperTheme) -> Unit,
@@ -502,6 +506,10 @@ fun ReaderScreen(
             bookmarks = bookmarks,
             onSelectPage = onPageChanged,
             onAddCustomChapter = onAddCustomChapter,
+            onUpdateChapter = onUpdateChapter,
+            onDeleteChapter = onDeleteChapter,
+            onApplyCustomToc = onApplyCustomToc,
+            onScanAndExtractPdfOutline = onScanAndExtractPdfOutline,
             onRegenerateOutline = onRegenerateOutline,
             onDismiss = { showChapterOutlineSheet = false }
         )

@@ -26,9 +26,10 @@
 - **Color-Coded Ribbons & Margin Notes**: Attach custom margin notes and choose from four archival ribbon presets (*Crimson Silk*, *Antique Gold*, *Botanical Green*, *Venetian Cobalt*).
 - **Bookmarks Drawer & Library Hub**: Filter saved bookmarks by ribbon color inside the reader or browse all bookmarked pages across every book and PDF in the **Saved Ribbons** library tab.
 
-### 4. Hierarchical Chapter Outline & Page Overview
-- **Interactive Table of Contents**: Browse main chapters and indented sub-sections with page ranges, completion badges, active chapter highlighting, and per-chapter bookmark indicators.
-- **Custom Chapter Markers**: Add new chapter or sub-section markers to any page directly from the Chapter Outline sheet—ideal for structuring imported PDFs.
+### 4. Hierarchical Chapter Outline & Book Contents
+- **Automatic PDF Outline & Bookmark Extraction**: Directly parses embedded PDF outlines and bookmark dictionaries (`/Outlines`, `/Title`, `/Dest`, `/A -> /D`) upon importing documents, automatically extracting the real chapter and section titles from uploaded books.
+- **Printed Table of Contents Detection & Custom TOC Import**: Tap **Edit / Paste TOC** in the Table of Contents sheet to scan printed page headers or paste/type any book's exact contents list (e.g. `Chapter 1: The Gathering - 1`). The parser automatically links chapters and sub-sections to their target pages.
+- **Inline Chapter Editing & Management**: Edit any chapter's title, subtitle, or page range with the inline edit tool, or delete and mark custom chapters on any leaf.
 - **Annotated Page Scrubber & Thumbnail Grid**: Scrub through pages with chapter boundary ticks and colored bookmark dots on the timeline, or open the **Page Overview Grid** to visually scan all leaves.
 
 ### 5. Atelier Studio Customization

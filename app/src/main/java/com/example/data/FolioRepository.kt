@@ -202,16 +202,31 @@ class FolioRepository(
         }
     }
 
-    fun generateDefaultChaptersForPageCount(folioId: String, totalPages: Int): List<ChapterEntity> {
+    fun generateDefaultChaptersForPageCount(
+        folioId: String,
+        totalPages: Int,
+        bookTitle: String = ""
+    ): List<ChapterEntity> {
         val count = totalPages.coerceAtLeast(1)
         val generated = mutableListOf<ChapterEntity>()
+        val standardNames = listOf(
+            "Chapter 1 · Introduction & Foundations",
+            "Chapter 2 · Core Principles & Background",
+            "Chapter 3 · Architectural Framework & Theory",
+            "Chapter 4 · Detailed Analyses & Plates",
+            "Chapter 5 · Empirical Findings & Observations",
+            "Chapter 6 · Comparative Synthesis",
+            "Chapter 7 · Critical Commentary & Discussion",
+            "Chapter 8 · Epilogue, Appendices & Notes"
+        )
+
         if (count <= 4) {
             for (p in 0 until count) {
                 generated.add(
                     ChapterEntity(
                         folioId = folioId,
                         chapterNumber = p + 1,
-                        title = "Section ${p + 1} · Folio Leaf ${p + 1}",
+                        title = standardNames.getOrElse(p) { "Chapter ${p + 1}" },
                         subtitle = "Page ${p + 1} of $count",
                         startPage = p,
                         endPage = p,
@@ -220,38 +235,33 @@ class FolioRepository(
                 )
             }
         } else {
-            val chunk = (count / 4).coerceIn(2, 6)
-            var chapterNum = 1
-            var start = 0
-            while (start < count) {
-                val end = (start + chunk - 1).coerceAtMost(count - 1)
+            val numChapters = when {
+                count in 5..10 -> 4
+                count in 11..25 -> 5
+                count in 26..60 -> 6
+                else -> 8
+            }.coerceAtMost(count)
+
+            val pagesPerChapter = (count.toDouble() / numChapters)
+            for (c in 0 until numChapters) {
+                val start = (c * pagesPerChapter).toInt().coerceIn(0, count - 1)
+                val end = if (c == numChapters - 1) {
+                    count - 1
+                } else {
+                    (((c + 1) * pagesPerChapter) - 1).toInt().coerceIn(start, count - 1)
+                }
+                val title = standardNames.getOrElse(c) { "Chapter ${c + 1}" }
                 generated.add(
                     ChapterEntity(
                         folioId = folioId,
-                        chapterNumber = chapterNum,
-                        title = "Part $chapterNum · Leaves ${start + 1}–${end + 1}",
-                        subtitle = "Chapters & Leaves ($chunk leaves)",
+                        chapterNumber = c + 1,
+                        title = title,
+                        subtitle = if (start == end) "Page ${start + 1}" else "Pages ${start + 1}–${end + 1}",
                         startPage = start,
                         endPage = end,
                         level = 0
                     )
                 )
-                // Add sub-leaves for quick jumping
-                for (sub in start..end) {
-                    generated.add(
-                        ChapterEntity(
-                            folioId = folioId,
-                            chapterNumber = chapterNum,
-                            title = "Leaf ${sub + 1}",
-                            subtitle = "Page ${sub + 1} of $count",
-                            startPage = sub,
-                            endPage = sub,
-                            level = 1
-                        )
-                    )
-                }
-                start = end + 1
-                chapterNum++
             }
         }
         return generated
@@ -264,9 +274,22 @@ class FolioRepository(
         val defaults = getDefaultChaptersForFolio(folioId)
         if (defaults.isNotEmpty()) {
             dao.insertChapters(defaults)
-        } else {
-            dao.insertChapters(generateDefaultChaptersForPageCount(folioId, totalPages))
+            return@withContext
         }
+
+        val folio = dao.getFolioById(folioId)
+        if (folio != null && folio.isPdf) {
+            val file = File(folio.filePathOrKey)
+            if (file.exists()) {
+                val extracted = PdfOutlineExtractor.extractOutline(file, folioId, totalPages)
+                if (extracted.isNotEmpty()) {
+                    dao.insertChapters(extracted)
+                    return@withContext
+                }
+            }
+        }
+
+        dao.insertChapters(generateDefaultChaptersForPageCount(folioId, totalPages, folio?.title ?: ""))
     }
 
     suspend fun importExternalPdf(uri: Uri): FolioEntity? = withContext(Dispatchers.IO) {
@@ -314,47 +337,52 @@ class FolioRepository(
             )
             dao.insertFolio(newFolio)
 
-            // Generate smart default chapter outline sections for the imported PDF
-            val generatedChapters = mutableListOf<ChapterEntity>()
-            if (pageCount <= 4) {
-                for (p in 0 until pageCount) {
-                    generatedChapters.add(
-                        ChapterEntity(
-                            folioId = folioId,
-                            chapterNumber = p + 1,
-                            title = "Section ${p + 1} · Folio Leaf ${p + 1}",
-                            subtitle = "Page ${p + 1} of $pageCount",
-                            startPage = p,
-                            endPage = p,
-                            level = 0
-                        )
-                    )
-                }
+            // Extract real embedded outline from the uploaded book!
+            val extractedChapters = PdfOutlineExtractor.extractOutline(destFile, folioId, pageCount)
+            if (extractedChapters.isNotEmpty()) {
+                dao.insertChapters(extractedChapters)
             } else {
-                val chunk = (pageCount / 4).coerceAtLeast(2)
-                var chapterNum = 1
-                var start = 0
-                while (start < pageCount) {
-                    val end = (start + chunk - 1).coerceAtMost(pageCount - 1)
-                    generatedChapters.add(
-                        ChapterEntity(
-                            folioId = folioId,
-                            chapterNumber = chapterNum,
-                            title = "Part $chapterNum · Pages ${start + 1}–${end + 1}",
-                            subtitle = "Imported PDF Section ($chunk leaves)",
-                            startPage = start,
-                            endPage = end,
-                            level = 0
-                        )
-                    )
-                    start = end + 1
-                    chapterNum++
-                }
+                val defaultChapters = generateDefaultChaptersForPageCount(folioId, pageCount, cleanTitle)
+                dao.insertChapters(defaultChapters)
             }
-            dao.insertChapters(generatedChapters)
             newFolio
         } catch (e: Exception) {
             null
+        }
+    }
+
+    suspend fun updateChapter(chapter: ChapterEntity) = withContext(Dispatchers.IO) {
+        dao.updateChapter(chapter)
+    }
+
+    suspend fun deleteChapterById(chapterId: Long) = withContext(Dispatchers.IO) {
+        dao.deleteChapterById(chapterId)
+    }
+
+    suspend fun replaceChaptersForFolio(folioId: String, newChapters: List<ChapterEntity>) = withContext(Dispatchers.IO) {
+        dao.deleteChaptersForFolio(folioId)
+        dao.insertChapters(newChapters)
+    }
+
+    suspend fun applyCustomToc(folioId: String, totalPages: Int, tocText: String) = withContext(Dispatchers.IO) {
+        val parsed = PdfOutlineExtractor.parseCustomTocText(tocText, folioId, totalPages)
+        if (parsed.isNotEmpty()) {
+            dao.deleteChaptersForFolio(folioId)
+            dao.insertChapters(parsed)
+        }
+    }
+
+    suspend fun extractAndApplyPdfOutline(folio: FolioEntity): Boolean = withContext(Dispatchers.IO) {
+        if (!folio.isPdf) return@withContext false
+        val file = File(folio.filePathOrKey)
+        if (!file.exists()) return@withContext false
+        val extracted = PdfOutlineExtractor.extractOutline(file, folio.id, folio.totalPages)
+        if (extracted.isNotEmpty()) {
+            dao.deleteChaptersForFolio(folio.id)
+            dao.insertChapters(extracted)
+            true
+        } else {
+            false
         }
     }
 
