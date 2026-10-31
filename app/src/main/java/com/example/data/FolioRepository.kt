@@ -20,13 +20,12 @@ class FolioRepository(
     val allBookmarks: Flow<List<BookmarkEntity>> = dao.getAllBookmarks()
 
     fun observeFolioById(folioId: String): Flow<FolioEntity?> = dao.observeFolioById(folioId)
+    suspend fun getFolioById(folioId: String): FolioEntity? = withContext(Dispatchers.IO) { dao.getFolioById(folioId) }
     fun getChaptersForFolio(folioId: String): Flow<List<ChapterEntity>> = dao.getChaptersForFolio(folioId)
     fun getBookmarksForFolio(folioId: String): Flow<List<BookmarkEntity>> = dao.getBookmarksForFolio(folioId)
 
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
         val (archFile, astroFile) = SampleContentGenerator.ensureSamplePdfsGenerated(context)
-        if (dao.getFolioCount() > 0) return@withContext
-
         val now = System.currentTimeMillis()
         val folios = listOf(
             FolioEntity(
@@ -86,49 +85,18 @@ class FolioRepository(
                 isFavorite = false
             )
         )
-        dao.insertFolios(folios)
 
-        // Seed comprehensive hierarchical Chapter Outlines (main chapters + sub-sections)
-        val chapters = listOf(
-            // De Architectura PDF
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 1, title = "I. Harmonic Proportions", subtitle = "The Euclidean Canon & Golden Ratio", startPage = 0, endPage = 1, level = 0),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 1, title = "Modular Intercolumniation", subtitle = "Eustyle Colonnade & Optical Entasis", startPage = 1, endPage = 1, level = 1),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 2, title = "II. Hemispherical Domes", subtitle = "Oculus Compression Rings & Coffering", startPage = 2, endPage = 3, level = 0),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 2, title = "Double-Shell Herringbone Masonry", subtitle = "Brunelleschi's Spinapesce Spiral", startPage = 3, endPage = 3, level = 1),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 3, title = "III. Acoustic Amphitheaters", subtitle = "Harmonic Vessels & Cuneus Geometry", startPage = 4, endPage = 5, level = 0),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 3, title = "Velarium Rigging & Vomitoria", subtitle = "Radial Pier Crowd Circulation", startPage = 5, endPage = 5, level = 1),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 4, title = "IV. Chiaroscuro & Daylight", subtitle = "Clerestory Apertures & Solstice Rays", startPage = 6, endPage = 7, level = 0),
-            ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 4, title = "Colophon of the Guild", subtitle = "Iron-Gall Ink & Copperplate Preservation", startPage = 7, endPage = 7, level = 1),
+        for (f in folios) {
+            val existing = dao.getFolioById(f.id)
+            if (existing == null) {
+                dao.insertFolio(f)
+            }
+            if (dao.getChapterCountForFolio(f.id) == 0) {
+                dao.insertChapters(getDefaultChaptersForFolio(f.id))
+            }
+        }
 
-            // Hortus Malabaricus Book
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 1, title = "Chapter I · The Cloud Forest Canopy", subtitle = "Epiphytic Orchids & High-Altitude Mist", startPage = 0, endPage = 1, level = 0),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 1, title = "1.2 Bryophyte Micro-Watersheds", subtitle = "Canopy Moss Water Retention", startPage = 1, endPage = 1, level = 1),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 2, title = "Chapter II · Fibonacci Phyllotaxis", subtitle = "The Golden Angle in Rosette Succulents", startPage = 2, endPage = 3, level = 0),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 2, title = "2.2 Fractal Venation", subtitle = "Anastomosing Leaf Hydraulics", startPage = 3, endPage = 3, level = 1),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 3, title = "Chapter III · Nocturnal Pollination", subtitle = "Moonflower Opening Kinematics", startPage = 4, endPage = 5, level = 0),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 3, title = "3.2 Thermogenic Arums", subtitle = "Botanical Furnaces in Frosty Valleys", startPage = 5, endPage = 5, level = 1),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 4, title = "Chapter IV · Pigments & Botanical Inks", subtitle = "Oak Galls, Indigo Vats & Saffron", startPage = 6, endPage = 7, level = 0),
-            ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 4, title = "4.2 The Living Herbarium", subtitle = "Archival Preservation & Colophon", startPage = 7, endPage = 7, level = 1),
-
-            // Uranometria PDF
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 1, title = "I. The Armillary Sphere", subtitle = "Equinoctial Rings & Ecliptic Obliquity", startPage = 0, endPage = 1, level = 0),
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 1, title = "Planispheric Astrolabe Projection", subtitle = "Stereographic Rete & Tympan", startPage = 1, endPage = 1, level = 1),
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 2, title = "II. Planetary Epicycles", subtitle = "Retrograde Loops & Synodic Rosettes", startPage = 2, endPage = 3, level = 0),
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 2, title = "Keplerian Elliptical Sectors", subtitle = "Equal Areas in Equal Times", startPage = 3, endPage = 3, level = 1),
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 3, title = "III. Selenography & Libration", subtitle = "Lunar Terminator Shadow Micrometry", startPage = 4, endPage = 5, level = 0),
-            ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 3, title = "Circumpolar Nocturnal Dial", subtitle = "Polaris & Northern Guard Stars", startPage = 5, endPage = 5, level = 1),
-
-            // Venetian Typography Book
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 1, title = "Chapter I · The Venetian Matrix", subtitle = "Steel Punchcutting & Counterpunches", startPage = 0, endPage = 1, level = 0),
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 1, title = "1.2 The Portable Octavo", subtitle = "Aldus Manutius & Chancery Italic", startPage = 1, endPage = 1, level = 1),
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 2, title = "Chapter II · Canons of Page Construction", subtitle = "Villard de Honnecourt & 2:3:4:6 Margins", startPage = 2, endPage = 3, level = 0),
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 2, title = "2.2 Rag Paper Grain & Chain Lines", subtitle = "Fabriano Laid Moulds & Folding Axis", startPage = 3, endPage = 3, level = 1),
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 3, title = "Chapter III · The Bindery & Silk Ribbon", subtitle = "Smyth Sewing & Articulated Spine Arch", startPage = 4, endPage = 5, level = 0),
-            ChapterEntity(folioId = "folio_typography_book", chapterNumber = 3, title = "3.2 Marginalia & Reader's Dialogue", subtitle = "Manicules, Ribbons & Living Books", startPage = 5, endPage = 5, level = 1)
-        )
-        dao.insertChapters(chapters)
-
-        // Seed curated starter bookmarks with rich margin notes
+        // Seed curated starter bookmarks if bookmarks table is empty
         val starterBookmarks = listOf(
             BookmarkEntity(
                 folioId = "folio_arch_pdf",
@@ -161,7 +129,144 @@ class FolioRepository(
                 createdAt = now - 1800_000L
             )
         )
-        dao.insertBookmarks(starterBookmarks)
+        for (bm in starterBookmarks) {
+            if (dao.getBookmarkForPage(bm.folioId, bm.pageIndex) == null) {
+                dao.insertBookmark(bm)
+            }
+        }
+    }
+
+    fun getDefaultChaptersForFolio(folioId: String): List<ChapterEntity> {
+        return when (folioId) {
+            "folio_arch_pdf" -> listOf(
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 1, title = "I. Harmonic Proportions", subtitle = "The Euclidean Canon & Colonnades", startPage = 0, endPage = 1, level = 0),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 1, title = "Plate I · The Euclidean Canon & Golden Ratio", subtitle = "Page 1 · Fibonacci Vault Subdivision", startPage = 0, endPage = 0, level = 1),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 1, title = "Plate II · Modular Intercolumniation & Entasis", subtitle = "Page 2 · Eustyle Colonnade & Optical Vectors", startPage = 1, endPage = 1, level = 1),
+
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 2, title = "II. Hemispherical Domes", subtitle = "Oculus Rings & Masonry Shells", startPage = 2, endPage = 3, level = 0),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 2, title = "Plate III · Oculus Compression & Rotunda", subtitle = "Page 3 · Concentric Coffering & Pumice Shell", startPage = 2, endPage = 2, level = 1),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 2, title = "Plate IV · Double-Shell Herringbone Masonry", subtitle = "Page 4 · Brunelleschi's Spinapesce Spiral", startPage = 3, endPage = 3, level = 1),
+
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 3, title = "III. Acoustic Amphitheaters", subtitle = "Cavea Geometry & Air Circulation", startPage = 4, endPage = 5, level = 0),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 3, title = "Plate V · Acoustic Vessels & Cuneus Sightlines", subtitle = "Page 5 · Radial Cavea Wavefront Projection", startPage = 4, endPage = 4, level = 1),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 3, title = "Plate VI · Velarium Rigging & Vomitoria", subtitle = "Page 6 · Radial Pier Distribution & Crowd Flow", startPage = 5, endPage = 5, level = 1),
+
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 4, title = "IV. Chiaroscuro & Archival Colophon", subtitle = "Daylight Apertures & Iron-Gall Preservation", startPage = 6, endPage = 7, level = 0),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 4, title = "Plate VII · Clerestory Rays & Solstice Alignment", subtitle = "Page 7 · Meridian Choir Threshold Alignment", startPage = 6, endPage = 6, level = 1),
+                ChapterEntity(folioId = "folio_arch_pdf", chapterNumber = 4, title = "Plate VIII · Colophon & Guild Master Seal", subtitle = "Page 8 · Copperplate Archival Inks", startPage = 7, endPage = 7, level = 1)
+            )
+            "folio_botanica_book" -> listOf(
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 1, title = "Chapter I · The Cloud Forest Canopy", subtitle = "High-Altitude Mist & Bryophyte Sponges", startPage = 0, endPage = 1, level = 0),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 1, title = "1.1 Epiphytic Orchids & High-Altitude Mist", subtitle = "Page 1 · Velamen Roots & Hawk-Moth Spurs", startPage = 0, endPage = 0, level = 1),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 1, title = "1.2 Bryophyte Micro-Watersheds", subtitle = "Page 2 · Canopy Moss Water Retention", startPage = 1, endPage = 1, level = 1),
+
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 2, title = "Chapter II · Fibonacci Phyllotaxis", subtitle = "Rosette Geometry & Venation Hydraulics", startPage = 2, endPage = 3, level = 0),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 2, title = "2.1 The Golden Angle in Rosette Succulents", subtitle = "Page 3 · 137.5° Divergence & Parastichy", startPage = 2, endPage = 2, level = 1),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 2, title = "2.2 Fractal Venation & Hydraulic Redundancy", subtitle = "Page 4 · Anastomosing Areoles & Midrib Lesions", startPage = 3, endPage = 3, level = 1),
+
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 3, title = "Chapter III · Nocturnal Pollination", subtitle = "Moonflowers & Crepuscular Furnaces", startPage = 4, endPage = 5, level = 0),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 3, title = "3.1 Moonflower Opening Kinematics", subtitle = "Page 5 · Twilight Spectral Shift & Turgor Surge", startPage = 4, endPage = 4, level = 1),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 3, title = "3.2 Thermogenic Arums & Botanical Furnaces", subtitle = "Page 6 · Alternative Oxidase & Metabolic Warmth", startPage = 5, endPage = 5, level = 1),
+
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 4, title = "Chapter IV · Pigments & Botanical Inks", subtitle = "Oak Galls, Indigos & The Living Herbarium", startPage = 6, endPage = 7, level = 0),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 4, title = "4.1 Oak Galls, Indigo Vats & Saffron Glazes", subtitle = "Page 7 · Permanent Inks & Acacia Gum", startPage = 6, endPage = 6, level = 1),
+                ChapterEntity(folioId = "folio_botanica_book", chapterNumber = 4, title = "4.2 The Living Herbarium (Epilogue)", subtitle = "Page 8 · Archival Sizing & Florentine Clasps", startPage = 7, endPage = 7, level = 1)
+            )
+            "folio_astro_pdf" -> listOf(
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 1, title = "I. The Armillary Sphere", subtitle = "Equinoctial Brass Rings & Stereographic Tympans", startPage = 0, endPage = 1, level = 0),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 1, title = "Chart I · Brass Armillary Rings & Ecliptic Vector", subtitle = "Page 1 · Vernier Scales & Pinnule Sightings", startPage = 0, endPage = 0, level = 1),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 1, title = "Chart II · Stereographic Astrolabe Projection", subtitle = "Page 2 · Almucantars & Pierced Rete Pointers", startPage = 1, endPage = 1, level = 1),
+
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 2, title = "II. Planetary Epicycles & Orbits", subtitle = "Retrograde Rosettes & Keplerian Ellipses", startPage = 2, endPage = 3, level = 0),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 2, title = "Chart III · Synodic Retrograde Rosettes", subtitle = "Page 3 · Orbital Loops at Opposition", startPage = 2, endPage = 2, level = 1),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 2, title = "Chart IV · Keplerian Elliptical Focus Areas", subtitle = "Page 4 · Equal Areas in Equal Times", startPage = 3, endPage = 3, level = 1),
+
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 3, title = "III. Selenography & Night Sky", subtitle = "Lunar Shadow Micrometry & Circumpolar Dials", startPage = 4, endPage = 5, level = 0),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 3, title = "Chart V · Lunar Terminator Shadow Micrometry", subtitle = "Page 5 · Crater Ramparts & Optical Libration", startPage = 4, endPage = 4, level = 1),
+                ChapterEntity(folioId = "folio_astro_pdf", chapterNumber = 3, title = "Chart VI · Circumpolar Nocturnal Dial & Clock", subtitle = "Page 6 · Polaris & Northern Guard Stars", startPage = 5, endPage = 5, level = 1)
+            )
+            "folio_typography_book" -> listOf(
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 1, title = "Chapter I · The Venetian Matrix", subtitle = "Steel Punchcutting & The Portable Octavo", startPage = 0, endPage = 1, level = 0),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 1, title = "1.1 Punchcutting in Steel & Counterpunches", subtitle = "Page 1 · Francesco Griffo & Counter Light", startPage = 0, endPage = 0, level = 1),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 1, title = "1.2 The Invention of the Portable Octavo", subtitle = "Page 2 · Aldus Manutius & Chancery Italic", startPage = 1, endPage = 1, level = 1),
+
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 2, title = "Chapter II · Canons of Page Construction", subtitle = "Geometric Margins & Laid Rag Paper Grain", startPage = 2, endPage = 3, level = 0),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 2, title = "2.1 Villard de Honnecourt & 2:3:4:6 Margins", subtitle = "Page 3 · Van de Graaf Grid & Diagonal Canon", startPage = 2, endPage = 2, level = 1),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 2, title = "2.2 Rag Paper Grain & Deckle Edges", subtitle = "Page 4 · Fabriano Chain Lines & Cylindrical Axis", startPage = 3, endPage = 3, level = 1),
+
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 3, title = "Chapter III · The Bindery & Silk Ribbon", subtitle = "Smyth Cord Sewing & Marginalia Dialogue", startPage = 4, endPage = 5, level = 0),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 3, title = "3.1 Smyth Sewing & Articulated Spine Arch", subtitle = "Page 5 · Five-Cord Signatures & Hollow Back", startPage = 4, endPage = 4, level = 1),
+                ChapterEntity(folioId = "folio_typography_book", chapterNumber = 3, title = "3.2 Marginalia & The Reader's Dialogue", subtitle = "Page 6 · Erasmus, Manicules & Silk Markers", startPage = 5, endPage = 5, level = 1)
+            )
+            else -> emptyList()
+        }
+    }
+
+    fun generateDefaultChaptersForPageCount(folioId: String, totalPages: Int): List<ChapterEntity> {
+        val count = totalPages.coerceAtLeast(1)
+        val generated = mutableListOf<ChapterEntity>()
+        if (count <= 4) {
+            for (p in 0 until count) {
+                generated.add(
+                    ChapterEntity(
+                        folioId = folioId,
+                        chapterNumber = p + 1,
+                        title = "Section ${p + 1} · Folio Leaf ${p + 1}",
+                        subtitle = "Page ${p + 1} of $count",
+                        startPage = p,
+                        endPage = p,
+                        level = 0
+                    )
+                )
+            }
+        } else {
+            val chunk = (count / 4).coerceIn(2, 6)
+            var chapterNum = 1
+            var start = 0
+            while (start < count) {
+                val end = (start + chunk - 1).coerceAtMost(count - 1)
+                generated.add(
+                    ChapterEntity(
+                        folioId = folioId,
+                        chapterNumber = chapterNum,
+                        title = "Part $chapterNum · Leaves ${start + 1}–${end + 1}",
+                        subtitle = "Chapters & Leaves ($chunk leaves)",
+                        startPage = start,
+                        endPage = end,
+                        level = 0
+                    )
+                )
+                // Add sub-leaves for quick jumping
+                for (sub in start..end) {
+                    generated.add(
+                        ChapterEntity(
+                            folioId = folioId,
+                            chapterNumber = chapterNum,
+                            title = "Leaf ${sub + 1}",
+                            subtitle = "Page ${sub + 1} of $count",
+                            startPage = sub,
+                            endPage = sub,
+                            level = 1
+                        )
+                    )
+                }
+                start = end + 1
+                chapterNum++
+            }
+        }
+        return generated
+    }
+
+    suspend fun ensureChaptersForFolio(folioId: String, totalPages: Int) = withContext(Dispatchers.IO) {
+        val existingCount = dao.getChapterCountForFolio(folioId)
+        if (existingCount > 0) return@withContext
+
+        val defaults = getDefaultChaptersForFolio(folioId)
+        if (defaults.isNotEmpty()) {
+            dao.insertChapters(defaults)
+        } else {
+            dao.insertChapters(generateDefaultChaptersForPageCount(folioId, totalPages))
+        }
     }
 
     suspend fun importExternalPdf(uri: Uri): FolioEntity? = withContext(Dispatchers.IO) {

@@ -56,6 +56,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,13 +91,21 @@ fun ChapterOutlineSheet(
     bookmarks: List<BookmarkEntity>,
     onSelectPage: (Int) -> Unit,
     onAddCustomChapter: (title: String, subtitle: String, isSubSection: Boolean) -> Unit,
+    onRegenerateOutline: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAddForm by remember { mutableStateOf(false) }
+    var selectedOutlineTab by remember { mutableIntStateOf(0) } // 0 = Chapters, 1 = All Leaves
     var newTitle by remember { mutableStateOf("") }
     var newSubtitle by remember { mutableStateOf("") }
     var isSubSection by remember { mutableStateOf(false) }
+
+    // Find the most specific active chapter for highlighting
+    val exactActiveChapterId = remember(chapters, currentPage) {
+        chapters.filter { currentPage in it.startPage..it.endPage }
+            .maxByOrNull { it.level }?.id
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -119,7 +128,7 @@ fun ChapterOutlineSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "CHAPTER OUTLINE",
+                        text = "TABLE OF CONTENTS",
                         fontFamily = JetBrainsMonoFamily,
                         fontSize = 11.sp,
                         letterSpacing = 1.4.sp,
@@ -220,146 +229,339 @@ fun ChapterOutlineSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Outline Selection Chips (Chapters vs All Leaves)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedOutlineTab == 0,
+                    onClick = { selectedOutlineTab = 0 },
+                    label = { Text("Chapters (${chapters.size})") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("tab_chapters_outline")
+                )
+                FilterChip(
+                    selected = selectedOutlineTab == 1,
+                    onClick = { selectedOutlineTab = 1 },
+                    label = { Text("All Leaves ($totalPages)") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesomeMotion,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("tab_all_leaves")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
             Spacer(modifier = Modifier.height(10.dp))
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 440.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(chapters, key = { it.id }) { chapter ->
-                    val isCurrent = currentPage in chapter.startPage..chapter.endPage
-                    val isCompleted = currentPage > chapter.endPage
-                    val chapterBookmarks = bookmarks.filter { it.pageIndex in chapter.startPage..chapter.endPage }
-
+            if (selectedOutlineTab == 0) {
+                // Chapters Outline
+                if (chapters.isEmpty()) {
                     Surface(
-                        onClick = {
-                            onSelectPage(chapter.startPage)
-                            onDismiss()
-                        },
-                        color = when {
-                            isCurrent -> MaterialTheme.colorScheme.primaryContainer
-                            chapter.level > 0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                        },
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = if (chapter.level > 0) 22.dp else 0.dp)
-                            .border(
-                                width = if (isCurrent) 1.5.dp else 0.8.dp,
-                                color = if (isCurrent) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                                },
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .testTag("chapter_item_${chapter.startPage}_${chapter.level}")
+                            .padding(vertical = 16.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Chapter status pill
-                            Box(
-                                modifier = Modifier
-                                    .size(if (chapter.level == 0) 34.dp else 26.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        when {
-                                            isCurrent -> MaterialTheme.colorScheme.primary
-                                            isCompleted -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f)
-                                            else -> MaterialTheme.colorScheme.surface
-                                        }
-                                    ),
-                                contentAlignment = Alignment.Center
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No Chapters Indexed Yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Generate a structured table of contents outline for this folio.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = onRegenerateOutline,
+                                modifier = Modifier.testTag("generate_outline_button")
                             ) {
-                                if (isCompleted && !isCurrent) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Completed",
-                                        tint = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.size(15.dp)
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesomeMotion,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Generate Table of Contents")
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 480.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(chapters, key = { it.id }) { chapter ->
+                            val isExactCurrent = chapter.id == exactActiveChapterId
+                            val isContainingCurrent = currentPage in chapter.startPage..chapter.endPage
+                            val isCompleted = currentPage > chapter.endPage
+                            val chapterBookmarks = bookmarks.filter { it.pageIndex in chapter.startPage..chapter.endPage }
+
+                            Surface(
+                                onClick = {
+                                    onSelectPage(chapter.startPage)
+                                    onDismiss()
+                                },
+                                color = when {
+                                    isExactCurrent -> MaterialTheme.colorScheme.primaryContainer
+                                    isContainingCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                    chapter.level > 0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = if (chapter.level > 0) 22.dp else 0.dp)
+                                    .border(
+                                        width = if (isExactCurrent) 1.5.dp else 0.8.dp,
+                                        color = if (isExactCurrent) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                        },
+                                        shape = RoundedCornerShape(12.dp)
                                     )
-                                } else {
+                                    .testTag("chapter_item_${chapter.startPage}_${chapter.level}")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Chapter status pill
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (chapter.level == 0) 34.dp else 26.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when {
+                                                    isExactCurrent -> MaterialTheme.colorScheme.primary
+                                                    isCompleted -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f)
+                                                    else -> MaterialTheme.colorScheme.surface
+                                                }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isCompleted && !isExactCurrent) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Completed",
+                                                tint = MaterialTheme.colorScheme.tertiary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        } else {
+                                            Text(
+                                                text = if (chapter.level == 0) "${chapter.chapterNumber}" else "§",
+                                                fontFamily = JetBrainsMonoFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = if (isExactCurrent) {
+                                                    MaterialTheme.colorScheme.onPrimary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = chapter.title,
+                                            fontFamily = if (chapter.level == 0) PlayfairDisplayFamily else MaterialTheme.typography.titleMedium.fontFamily,
+                                            fontWeight = if (chapter.level == 0) FontWeight.Bold else FontWeight.SemiBold,
+                                            fontSize = if (chapter.level == 0) 16.sp else 14.sp,
+                                            color = if (isExactCurrent) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                        if (chapter.subtitle.isNotBlank()) {
+                                            Text(
+                                                text = chapter.subtitle,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (isExactCurrent) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = if (chapter.startPage == chapter.endPage) {
+                                                "P. ${chapter.startPage + 1}"
+                                            } else {
+                                                "PP. ${chapter.startPage + 1}–${chapter.endPage + 1}"
+                                            },
+                                            fontFamily = JetBrainsMonoFamily,
+                                            fontSize = 11.sp,
+                                            color = if (isExactCurrent) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                        if (chapterBookmarks.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                chapterBookmarks.take(3).forEach { bm ->
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Bookmark,
+                                                        contentDescription = "Bookmarked in chapter",
+                                                        tint = Color(bm.ribbonColorHex),
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // All Leaves Tab
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(totalPages) { pageIdx ->
+                        val isCurrent = pageIdx == currentPage
+                        val pageChapter = chapters.filter { pageIdx in it.startPage..it.endPage }
+                            .maxByOrNull { it.level }
+                            ?: chapters.lastOrNull { it.startPage <= pageIdx }
+                        val bookmark = bookmarks.find { it.pageIndex == pageIdx }
+
+                        Surface(
+                            onClick = {
+                                onSelectPage(pageIdx)
+                                onDismiss()
+                            },
+                            color = if (isCurrent) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = if (isCurrent) 1.5.dp else 0.8.dp,
+                                    color = if (isCurrent) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .testTag("leaf_item_$pageIdx")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isCurrent) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surface
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = if (chapter.level == 0) "${chapter.chapterNumber}" else "§",
+                                        text = "${pageIdx + 1}",
                                         fontFamily = JetBrainsMonoFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
-                                        color = if (isCurrent) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
+                                        color = if (isCurrent) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = chapter.title,
-                                    fontFamily = if (chapter.level == 0) PlayfairDisplayFamily else MaterialTheme.typography.titleMedium.fontFamily,
-                                    fontWeight = if (chapter.level == 0) FontWeight.Bold else FontWeight.SemiBold,
-                                    fontSize = if (chapter.level == 0) 16.sp else 14.sp,
-                                    color = if (isCurrent) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                                if (chapter.subtitle.isNotBlank()) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = chapter.subtitle,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        text = pageChapter?.title ?: "Leaf ${pageIdx + 1}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isCurrent) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
                                         } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                            MaterialTheme.colorScheme.onSurface
                                         },
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                    if (pageChapter != null && pageChapter.subtitle.isNotBlank()) {
+                                        Text(
+                                            text = pageChapter.subtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = if (chapter.startPage == chapter.endPage) {
-                                        "P. ${chapter.startPage + 1}"
-                                    } else {
-                                        "PP. ${chapter.startPage + 1}–${chapter.endPage + 1}"
-                                    },
-                                    fontFamily = JetBrainsMonoFamily,
-                                    fontSize = 11.sp,
-                                    color = if (isCurrent) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                                if (chapterBookmarks.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        chapterBookmarks.take(3).forEach { bm ->
-                                            Icon(
-                                                imageVector = Icons.Filled.Bookmark,
-                                                contentDescription = "Bookmarked in chapter",
-                                                tint = Color(bm.ribbonColorHex),
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                        }
-                                    }
+                                if (bookmark != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Filled.Bookmark,
+                                        contentDescription = "Bookmark ribbon on leaf",
+                                        tint = Color(bookmark.ribbonColorHex),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }

@@ -148,9 +148,19 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         _renderedPdfBitmaps.value = emptyMap()
         _selectedFolioId.value = folioId
         viewModelScope.launch {
+            val folio = repository.getFolioById(folioId)
+            val pages = folio?.totalPages ?: 8
+            repository.ensureChaptersForFolio(folioId, pages)
             if (jumpToPage != null) {
                 repository.updateProgress(folioId, jumpToPage)
             }
+        }
+    }
+
+    fun ensureChaptersForActiveFolio() {
+        val folio = activeFolio.value ?: return
+        viewModelScope.launch {
+            repository.ensureChaptersForFolio(folio.id, folio.totalPages)
         }
     }
 

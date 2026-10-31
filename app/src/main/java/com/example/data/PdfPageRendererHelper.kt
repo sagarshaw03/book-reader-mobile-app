@@ -47,7 +47,6 @@ class PdfPageRendererHelper {
         targetWidthPx: Int = 1080,
         paperTheme: PaperTheme = PaperTheme.PARCHMENT
     ): Bitmap? = withContext(Dispatchers.IO) {
-        if (!file.exists()) return@withContext null
         val safeWidth = targetWidthPx.coerceIn(320, 1600)
         val cacheKey = "${file.absolutePath}:$pageIndex:$safeWidth:${paperTheme.name}"
 
@@ -60,29 +59,33 @@ class PdfPageRendererHelper {
                 if (!cached.isRecycled) return@withLock cached
             }
 
-            val rawBitmap = try {
-                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-                    PdfRenderer(pfd).use { renderer ->
-                        if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@withLock null
-                        renderer.openPage(pageIndex).use { page ->
-                            val aspect = page.height.toFloat() / page.width.toFloat().coerceAtLeast(1f)
-                            val width = safeWidth
-                            val height = (width * aspect).toInt().coerceAtLeast(400)
+            val rawBitmap = if (file.exists()) {
+                try {
+                    ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                        PdfRenderer(pfd).use { renderer ->
+                            if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@withLock null
+                            renderer.openPage(pageIndex).use { page ->
+                                val aspect = page.height.toFloat() / page.width.toFloat().coerceAtLeast(1f)
+                                val width = safeWidth
+                                val height = (width * aspect).toInt().coerceAtLeast(400)
 
-                            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                            val canvas = Canvas(bmp)
-                            canvas.drawColor(android.graphics.Color.WHITE)
-                            page.render(
-                                bmp,
-                                null,
-                                null,
-                                PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-                            )
-                            bmp
+                                val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                val canvas = Canvas(bmp)
+                                canvas.drawColor(android.graphics.Color.WHITE)
+                                page.render(
+                                    bmp,
+                                    null,
+                                    null,
+                                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+                                )
+                                bmp
+                            }
                         }
                     }
+                } catch (e: Throwable) {
+                    renderBuiltInSamplePageBitmap(file, pageIndex)
                 }
-            } catch (e: Throwable) {
+            } else {
                 renderBuiltInSamplePageBitmap(file, pageIndex)
             } ?: return@withLock null
 
@@ -102,7 +105,15 @@ class PdfPageRendererHelper {
         } else {
             SampleContentGenerator.getArchitecturePageSpecs()
         }
-        val spec = specs.getOrNull(pageIndex) ?: return null
+        val spec = specs.getOrNull(pageIndex) ?: SampleContentGenerator.PdfPageSpec(
+            chapterNum = (pageIndex / 2) + 1,
+            chapterTitle = "Plate ${pageIndex + 1}",
+            sectionTitle = "Folio Plate Specification",
+            leadParagraph = "Detailed architectural and geometric folio plate for leaf ${pageIndex + 1}.",
+            secondParagraph = "Harmonic proportioning and archival plate layout for reading and inspection.",
+            calloutNote = "Plate ${pageIndex + 1} · Codex Edition",
+            diagramKind = pageIndex % 4
+        )
         val pageWidth = 720
         val pageHeight = 1020
         val bmp = Bitmap.createBitmap(pageWidth, pageHeight, Bitmap.Config.ARGB_8888)
@@ -115,7 +126,7 @@ class PdfPageRendererHelper {
             primaryHex = if (isCelestial) android.graphics.Color.rgb(34, 72, 128) else android.graphics.Color.rgb(154, 52, 34),
             secondaryHex = if (isCelestial) android.graphics.Color.rgb(186, 134, 44) else android.graphics.Color.rgb(180, 128, 48),
             index = pageIndex,
-            totalPages = specs.size,
+            totalPages = (specs.size).coerceAtLeast(pageIndex + 1),
             spec = spec
         )
         return bmp

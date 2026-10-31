@@ -40,11 +40,20 @@ interface FolioDao {
     @Query("SELECT * FROM chapters WHERE folioId = :folioId ORDER BY startPage ASC, level ASC, chapterNumber ASC")
     fun getChaptersForFolio(folioId: String): Flow<List<ChapterEntity>>
 
+    @Query("SELECT * FROM chapters WHERE folioId = :folioId ORDER BY startPage ASC, level ASC, chapterNumber ASC")
+    suspend fun getChapterListForFolioSync(folioId: String): List<ChapterEntity>
+
+    @Query("SELECT COUNT(*) FROM chapters WHERE folioId = :folioId")
+    suspend fun getChapterCountForFolio(folioId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChapters(chapters: List<ChapterEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChapter(chapter: ChapterEntity)
+
+    @Query("DELETE FROM chapters WHERE folioId = :folioId")
+    suspend fun deleteChaptersForFolio(folioId: String)
 
     // Bookmarks
     @Query("SELECT * FROM bookmarks WHERE folioId = :folioId ORDER BY pageIndex ASC")

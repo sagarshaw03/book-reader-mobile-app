@@ -102,6 +102,7 @@ fun Folio3DApp(
                 onRemoveBookmarkOnPage = viewModel::removeBookmarkOnPage,
                 onDeleteBookmark = viewModel::removeBookmark,
                 onAddCustomChapter = viewModel::addCustomChapterOnCurrentPage,
+                onRegenerateOutline = viewModel::ensureChaptersForActiveFolio,
                 onSelectTurnMode = viewModel::setTurnMode,
                 onSelectPaperTheme = viewModel::setPaperTheme,
                 onSelectFontChoice = viewModel::setFontChoice,

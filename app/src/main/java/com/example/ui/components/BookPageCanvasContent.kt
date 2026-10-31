@@ -9,6 +9,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -305,142 +307,150 @@ private fun LiteraryBookLeafContent(
 
         Spacer(modifier = Modifier.height(6.dp))
         HorizontalDivider(color = paperTheme.secondaryText.copy(alpha = 0.22f), thickness = 1.dp)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Chapter Opening Ornament & Heading
-        if (bookPage.isChapterStart) {
-            Text(
-                text = "CHAPTER ${bookPage.chapterNumber}",
-                fontFamily = JetBrainsMonoFamily,
-                fontSize = 11.sp,
-                letterSpacing = 1.6.sp,
-                color = paperTheme.accentColor
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = bookPage.chapterTitle.substringAfter("· ").ifBlank { bookPage.chapterTitle },
-                fontFamily = PlayfairDisplayFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = (22f * fontScale).sp,
-                lineHeight = (27f * fontScale).sp,
-                color = paperTheme.primaryText
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
-        if (!bookPage.sectionHeading.isNullOrBlank()) {
-            Text(
-                text = bookPage.sectionHeading,
-                fontFamily = PlayfairDisplayFamily,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Medium,
-                fontSize = (15f * fontScale).sp,
-                color = paperTheme.secondaryText
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        // First Paragraph with Oversized Illuminated Drop Cap
-        val firstChar = bookPage.dropCapParagraph.firstOrNull()?.toString() ?: ""
-        val remainingLead = if (bookPage.dropCapParagraph.isNotEmpty()) {
-            bookPage.dropCapParagraph.drop(1)
-        } else ""
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(end = 10.dp, top = 2.dp)
-                    .size(44.dp)
-                    .border(
-                        width = 1.dp,
-                        color = paperTheme.accentColor.copy(alpha = 0.45f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .background(
-                        paperTheme.accentColor.copy(alpha = 0.08f),
-                        RoundedCornerShape(4.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = firstChar,
-                    fontFamily = PlayfairDisplayFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 28.sp,
-                    color = paperTheme.accentColor
-                )
-            }
-            Text(
-                text = remainingLead,
-                fontFamily = readerFontFamily,
-                fontSize = bodyFontSize,
-                lineHeight = bodyLineHeight,
-                color = paperTheme.primaryText,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Optional Copperplate Inline Diagram Plate
-        if (bookPage.diagramType != PageDiagramType.NONE) {
-            BookInlineCopperplateDiagram(
-                diagramType = bookPage.diagramType,
-                caption = bookPage.diagramCaption,
-                paperTheme = paperTheme,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Remaining Body Paragraphs
-        bookPage.bodyParagraphs.forEach { paragraph ->
-            Text(
-                text = paragraph,
-                fontFamily = readerFontFamily,
-                fontSize = bodyFontSize,
-                lineHeight = bodyLineHeight,
-                color = paperTheme.primaryText,
-                modifier = Modifier.padding(bottom = 10.dp)
-            )
-        }
-
-        // Optional Literary Pull Quote
-        if (!bookPage.pullQuote.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .border(
-                        width = 1.dp,
-                        color = paperTheme.accentColor.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .background(
-                        paperTheme.accentColor.copy(alpha = 0.05f),
-                        RoundedCornerShape(6.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+        ) {
+            // Chapter Opening Ornament & Heading
+            if (bookPage.isChapterStart) {
                 Text(
-                    text = bookPage.pullQuote,
+                    text = "CHAPTER ${bookPage.chapterNumber}",
+                    fontFamily = JetBrainsMonoFamily,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.6.sp,
+                    color = paperTheme.accentColor
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = bookPage.chapterTitle.substringAfter("· ").ifBlank { bookPage.chapterTitle },
+                    fontFamily = PlayfairDisplayFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (22f * fontScale).sp,
+                    lineHeight = (27f * fontScale).sp,
+                    color = paperTheme.primaryText
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (!bookPage.sectionHeading.isNullOrBlank()) {
+                Text(
+                    text = bookPage.sectionHeading,
                     fontFamily = PlayfairDisplayFamily,
                     fontStyle = FontStyle.Italic,
-                    fontSize = (14f * fontScale).sp,
-                    lineHeight = (20f * fontScale).sp,
-                    color = paperTheme.accentColor,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    fontWeight = FontWeight.Medium,
+                    fontSize = (15f * fontScale).sp,
+                    color = paperTheme.secondaryText
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            // First Paragraph with Oversized Illuminated Drop Cap
+            val firstChar = bookPage.dropCapParagraph.firstOrNull()?.toString() ?: ""
+            val remainingLead = if (bookPage.dropCapParagraph.isNotEmpty()) {
+                bookPage.dropCapParagraph.drop(1)
+            } else ""
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 10.dp, top = 2.dp)
+                        .size(44.dp)
+                        .border(
+                            width = 1.dp,
+                            color = paperTheme.accentColor.copy(alpha = 0.45f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            paperTheme.accentColor.copy(alpha = 0.08f),
+                            RoundedCornerShape(4.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = firstChar,
+                        fontFamily = PlayfairDisplayFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        color = paperTheme.accentColor
+                    )
+                }
+                Text(
+                    text = remainingLead,
+                    fontFamily = readerFontFamily,
+                    fontSize = bodyFontSize,
+                    lineHeight = bodyLineHeight,
+                    color = paperTheme.primaryText,
+                    modifier = Modifier.weight(1f)
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Optional Copperplate Inline Diagram Plate
+            if (bookPage.diagramType != PageDiagramType.NONE) {
+                BookInlineCopperplateDiagram(
+                    diagramType = bookPage.diagramType,
+                    caption = bookPage.diagramCaption,
+                    paperTheme = paperTheme,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Remaining Body Paragraphs
+            bookPage.bodyParagraphs.forEach { paragraph ->
+                Text(
+                    text = paragraph,
+                    fontFamily = readerFontFamily,
+                    fontSize = bodyFontSize,
+                    lineHeight = bodyLineHeight,
+                    color = paperTheme.primaryText,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+            }
+
+            // Optional Literary Pull Quote
+            if (!bookPage.pullQuote.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .border(
+                            width = 1.dp,
+                            color = paperTheme.accentColor.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .background(
+                            paperTheme.accentColor.copy(alpha = 0.05f),
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = bookPage.pullQuote,
+                        fontFamily = PlayfairDisplayFamily,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = (14f * fontScale).sp,
+                        lineHeight = (20f * fontScale).sp,
+                        color = paperTheme.accentColor,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         // Footnote & Folio Leaf Number Footer
         HorizontalDivider(color = paperTheme.secondaryText.copy(alpha = 0.2f), thickness = 0.8.dp)

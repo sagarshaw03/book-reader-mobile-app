@@ -560,7 +560,7 @@ object SampleContentGenerator {
         BookPageContent(
             pageIndex = 2,
             chapterNumber = 2,
-            chapterTitle = "Chapter II ·Fibonacci Phyllotaxis",
+            chapterTitle = "Chapter II · Fibonacci Phyllotaxis",
             sectionHeading = "2.1 The Golden Angle in Rosette Succulents",
             isChapterStart = true,
             dropCapParagraph = "Why do the primordia of a pine cone, the florets of a sunflower capitulum, and the leaves of an alpine Sempervivum arrange themselves in intersecting parastichy spirals of 5 and 8, 8 and 13, or 13 and 21? Because each emerging leaf diverges from its predecessor by 137.5 degrees—the golden angle.",

@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.flow.first
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -26,5 +27,15 @@ class ExampleRobolectricTest {
 
         val botanicaPages = SampleContentGenerator.getBookPages("BOOK_BOTANICA")
         assertTrue("Botanica literary book should have multiple pages", botanicaPages.size >= 8)
+
+        val database = com.example.data.FolioDatabase.getDatabase(context)
+        val repository = com.example.data.FolioRepository(context, database.folioDao())
+        kotlinx.coroutines.runBlocking {
+            repository.ensureSeeded()
+            val chapters = database.folioDao().getChaptersForFolio("folio_arch_pdf")
+            val firstList = chapters.first()
+            println("ARCH CHAPTERS COUNT: " + firstList.size + " -> " + firstList.map { it.title })
+            assertTrue("Expected at least 8 chapters for architecture, but got: " + firstList.size, firstList.size >= 8)
+        }
     }
 }
