@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Folio 3D</string>
+    <string name="library_title">Atelier Library</string>
+    <string name="library_subtitle">3D Page-Turning Editions &amp; PDF Folios</string>
+    <string name="import_pdf">Import PDF</string>
+    <string name="search_placeholder">Search titles, authors, chapters, or notes…</string>
+    <string name="tab_all_folios">All Folios</string>
+    <string name="tab_pdf_documents">PDF Folios</string>
+    <string name="tab_books">Literary Books</string>
+    <string name="tab_bookmarks">Saved Ribbons</string>
+    <string name="chapter_outline">Chapter Outline</string>
+    <string name="bookmarks_title">Bookmarks &amp; Margin Notes</string>
+    <string name="reader_settings">Typography &amp; 3D Physics</string>
+    <string name="add_bookmark">Place Ribbon Bookmark</string>
+    <string name="remove_bookmark">Remove Ribbon</string>
+    <string name="turn_mode_curl">3D Page Curl</string>
+    <string name="turn_mode_hinge">3D Hardcover Hinge</string>
+    <string name="turn_mode_slide">Parallax Stack</string>
+    <string name="page_thumbnails">Page Overview</string>
+    <string name="empty_bookmarks_title">No Ribbons Placed Yet</string>
+    <string name="empty_bookmarks_subtitle">Pull the top-right silk ribbon or tap the bookmark icon while reading any book or PDF to save a page with margin notes.</string>
+</resources>
